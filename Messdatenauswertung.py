@@ -93,8 +93,8 @@ spectral_centroids = []
 peak_frequencies = []
 clearance_factors = []
 crest_factors = []
-impulse_factors = []  # NEU
-
+impulse_factors = []
+kurtoises = []  # NEU
 
 
 
@@ -146,7 +146,7 @@ if os.path.exists(tradb_path):
                         else:
                             clearance_factors.append(0.0)
 
-                        # --- NEU: ALGO 2 - CREST FACTOR (Exakt nach Doku) ---
+                        # --- ALGO 2: CREST FACTOR ---
                         rms = np.sqrt(np.mean(y ** 2))
                         if rms > 0:
                             crf = np.max(np.abs(y)) / rms
@@ -154,11 +154,32 @@ if os.path.exists(tradb_path):
                         else:
                             crest_factors.append(0.0)
 
+                        # --- ALGO 3: IMPULSE FACTOR ---
+                        mean_abs = np.mean(np.abs(y))
+                        if mean_abs > 0:
+                            imf = np.max(np.abs(y)) / mean_abs
+                            impulse_factors.append(np.round(imf, 2))
+                        else:
+                            impulse_factors.append(0.0)
+
+                        # --- NEU: ALGO 4 - KURTOSIS (Exakt nach Doku) ---
+                        y_centered = y - np.mean(y)
+                        m2 = np.mean(y_centered ** 2)
+                        m4 = np.mean(y_centered ** 4)
+
+                        if m2 > 0:
+                            kurt = m4 / (m2 ** 2)
+                            kurtoises.append(np.round(kurt, 2))
+                        else:
+                            kurtoises.append(0.0)
+
                     else:
                         spectral_centroids.append(None)
                         peak_frequencies.append(None)
                         clearance_factors.append(None)
                         crest_factors.append(None)
+                        impulse_factors.append(None)
+                        kurtoises.append(None)
 
                 except Exception as e:
                     print(f"Fehler bei Hit ID {idx} (TRAI {trai}): {e}")
@@ -166,11 +187,15 @@ if os.path.exists(tradb_path):
                     peak_frequencies.append(None)
                     clearance_factors.append(None)
                     crest_factors.append(None)
+                    impulse_factors.append(None)
+                    kurtoises.append(None)
             else:
                 spectral_centroids.append(None)
                 peak_frequencies.append(None)
                 clearance_factors.append(None)
                 crest_factors.append(None)
+                impulse_factors.append(None)
+                kurtoises.append(None)
 else:
     print(f"Warnung: Die Datei {tradb_path} wurde nicht gefunden!")
     placeholder = [None] * len(df_hits)
@@ -178,6 +203,8 @@ else:
     peak_frequencies = placeholder.copy()
     clearance_factors = placeholder.copy()
     crest_factors = placeholder.copy()
+    impulse_factors = placeholder.copy()
+    kurtoises = placeholder.copy()
 
 
 
@@ -187,8 +214,9 @@ else:
 df_hits["spectral_centroid_khz"] = spectral_centroids
 df_hits["peak_frequency_khz"] = peak_frequencies
 df_hits["clearance_factor"] = clearance_factors
-df_hits["crest_factor"] = crest_factors  # NEU
-
+df_hits["crest_factor"] = crest_factors
+df_hits["impulse_factor"] = impulse_factors
+df_hits["kurtosis"] = kurtoises  # NEU
 
 
 
@@ -320,7 +348,9 @@ spalten_reihenfolge = [
     "spectral_centroid_khz",
     "peak_frequency_khz" ,
     "clearance_factor" ,
-    "crest_factor"
+    "crest_factor" ,
+    "impulse_factor" ,
+    "kurtosis"
 ]
 
 # Nur diese Spalten exportieren
