@@ -7,6 +7,8 @@ from tkinter import filedialog
 import pandas as pd
 import os
 import openae as oae
+import openae.features as oae_feat
+
 
 plt.rcParams.update({
     "font.size": 11,
@@ -55,7 +57,7 @@ for col in required_cols:
 
 
 # ==============================================================================
-# HIER NUR DIE EINHEITEN-UMRECHNUNGEN EINFÜGEN
+# Hier werden die Einheiten und Größenordnungen der pridb-features in dieselbe Form wie in VisualAE umgerechnet
 # ==============================================================================
 # Amplitude in dB umrechnen und direkt überschreiben (1 Nachkommastelle)
 df_hits["amplitude"] = np.where(df_hits["amplitude"] > 0, 20 * np.log10(df_hits["amplitude"] / 1e-6), 0.0)
@@ -81,49 +83,22 @@ df_hits["threshold"] = np.round(df_hits["threshold"], 1)
 
 
 ##Dieser Block liest iterativ die -tradb-Rohdaten aus und führt zwei OpenAE-features drauf aus
+
+
 # Pfad zur .tradb-Datei definieren (liegt im selben Ordner wie die .pridb)
 tradb_path = str(pridb_path).replace(".pridb", ".tradb")
 
-# Listen erstellen, in denen wir die neuen OpenAE-Features zwischenspeichern
+# Hier werden die entsprechenden Listen erstellt, in die später die berechneten OpenAE-features geldaen werden
 spectral_centroids = []
 peak_frequencies = []
+spectral_variances = []
+spectral_skewnesses = []
+spectral_kurtoises = []
+weighted_peak_freqs = []
 
 
-# ==============================================================================
-# HIER DIE BEWÄHRTE FUNKTION AUS DEINEM ALTEN SKRIPT
-# ==============================================================================
-def get_spectral_features(wave, samplerate):
-    # Signal plattdrücken
-    wave_flat = np.asarray(wave, dtype=np.float64).flatten()
-
-    # FFT berechnen
-    spectrum = np.fft.rfft(wave_flat)
-    y_fft_abs = np.abs(spectrum)
-    f_axis = np.fft.rfftfreq(len(wave_flat), d=1 / samplerate)
-
-    # Peak Frequency
-    idx_max = np.argmax(y_fft_abs)
-    f_haupt_khz = f_axis[idx_max] / 1000.0
-
-    # Spectral Centroid (Leistungsspektrum-Schwerpunkt)
-    ps = y_fft_abs ** 2
-    ps_sum = np.sum(ps)
-
-    if ps_sum > 0:
-        f_centroid_hz = np.sum(f_axis * ps) / ps_sum
-        f_schwerpunkt_khz = f_centroid_hz / 1000.0
-    else:
-        f_schwerpunkt_khz = 0.0
-
-    return f_schwerpunkt_khz, f_haupt_khz
 
 
-# === HIER DAS KORREKTE IMPORT-STATEMENT EINFÜGEN ===
-import openae.features as oae_feat
-
-# Prüfen, ob die .tradb-Datei überhaupt existiert
-if os.path.exists(tradb_path):
-    print("Tradb-Datei gefunden! Starte die Feature-Extraktion für jeden Hit...")
 
 
 
@@ -144,10 +119,10 @@ if os.path.exists(tradb_path):
     # Öffnen der transienten Datenbank
     with vae.io.TraDatabase(tradb_path, mode='ro') as tra_db:
 
-        # Wir gehen Zeile für Zeile durch unsere Tabelle
+        # Wir fragen iterytiv den trai-index df_hits ab um danach die entsprechende Wellenform zu adressieren
         for idx, row in df_hits.iterrows():
             trai = int(row["trai"])
-
+            # If-Bedingung prüft, ob überhaupt ein trai-index vorhanden ist, sprich ob eine Wellenform für den nächsten Iterationszyklus existiert
             if trai > 0:
                 try:
                     # === FIX: y und t getrennt abfangen ===
@@ -326,8 +301,8 @@ spalten_reihenfolge = [
     "rise_time",
     "counts",
     "trai",
-    "spectral_centroid_khz",  # <-- NEU HINZUGEFÜGT
-    "peak_frequency_khz"       # <-- NEU HINZUGEFÜGT
+    "spectral_centroid_khz",  # OpenAE-feature
+    "peak_frequency_khz"       # OpenAE-feature
 ]
 
 # Nur diese Spalten exportieren
