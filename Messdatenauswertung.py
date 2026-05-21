@@ -221,7 +221,7 @@ if os.path.exists(tradb_path):
                         else:
                             spectral_flatnesses.append(0.0)
 
-                        # --- ALGO 10, 13 & 14: SPECTRAL MOMENTS (Kurtosis, Skewness & VARIANZ) ---
+                        # --- ALGO 10, 13 & 14: SPECTRAL MOMENTS ---
                         if ps_sum > 0:
                             p_spec = ps / ps_sum
                             spec_mean = np.sum(f_axis * p_spec)
@@ -234,10 +234,8 @@ if os.path.exists(tradb_path):
                                 spec_skew = (spec_m3 / ps_sum) / np.sqrt(spec_m2 / ps_sum) ** 3
                                 spectral_skewnesses.append(np.round(spec_skew, 2))
 
-                                # NEU: ALGO 14 - SPECTRAL VARIANCE (In kHz^2 umgerechnet für lesbare Werte)
                                 spec_var_hz2 = spec_m2 / ps_sum
-                                spec_var_khz2 = spec_var_hz2 / 1e6
-                                spectral_variances.append(np.round(spec_var_khz2, 1))
+                                spectral_variances.append(np.round(spec_var_hz2 / 1e6, 1))
                             else:
                                 spectral_kurtoises.append(0.0)
                                 spectral_skewnesses.append(0.0)
@@ -257,11 +255,18 @@ if os.path.exists(tradb_path):
                         else:
                             spectral_rolloffs.append(0.0)
 
+                        # --- NEU: ALGO 15 - ZERO CROSSING RATE (Optimierte Vektor-Version) ---
+                        # Zählt, wie oft das Signal die Nulllinie kreuzt
+                        signs = (y >= 0)
+                        crossings = np.sum(np.diff(signs))
+                        zcr_hz = float(fs) * crossings / len(y)
+                        zero_crossing_rates.append(np.round(zcr_hz, 1))
+
                     else:
                         for lst in [spectral_centroids, peak_frequencies, spectral_peak_frequencies, clearance_factors,
                                     crest_factors, impulse_factors, kurtoises, partial_powers, shape_factors,
                                     skewnesses, spectral_entropies, spectral_flatnesses, spectral_kurtoises,
-                                    spectral_rolloffs, spectral_skewnesses, spectral_variances]:
+                                    spectral_rolloffs, spectral_skewnesses, spectral_variances, zero_crossing_rates]:
                             lst.append(None)
 
                 except Exception as e:
@@ -269,33 +274,22 @@ if os.path.exists(tradb_path):
                     for lst in [spectral_centroids, peak_frequencies, spectral_peak_frequencies, clearance_factors,
                                 crest_factors, impulse_factors, kurtoises, partial_powers, shape_factors,
                                 skewnesses, spectral_entropies, spectral_flatnesses, spectral_kurtoises,
-                                spectral_rolloffs, spectral_skewnesses, spectral_variances]:
+                                spectral_rolloffs, spectral_skewnesses, spectral_variances, zero_crossing_rates]:
                         lst.append(None)
             else:
                 for lst in [spectral_centroids, peak_frequencies, spectral_peak_frequencies, clearance_factors,
                             crest_factors, impulse_factors, kurtoises, partial_powers, shape_factors,
-                            skewnesses, spectral_entropies, spectral_flatnesses, spectral_kurtoises, spectral_rolloffs,
-                            spectral_skewnesses, spectral_variances]:
+                            skewnesses, spectral_entropies, spectral_flatnesses, spectral_kurtoises,
+                            spectral_rolloffs, spectral_skewnesses, spectral_variances, zero_crossing_rates]:
                     lst.append(None)
 else:
     print(f"Warnung: Die Datei {tradb_path} wurde nicht gefunden!")
     placeholder = [None] * len(df_hits)
-    spectral_centroids = placeholder.copy()
-    peak_frequencies = placeholder.copy()
-    spectral_peak_frequencies = placeholder.copy()
-    clearance_factors = placeholder.copy()
-    crest_factors = placeholder.copy()
-    impulse_factors = placeholder.copy()
-    kurtoises = placeholder.copy()
-    partial_powers = placeholder.copy()
-    shape_factors = placeholder.copy()
-    skewnesses = placeholder.copy()
-    spectral_entropies = placeholder.copy()
-    spectral_flatnesses = placeholder.copy()
-    spectral_kurtoises = placeholder.copy()
-    spectral_rolloffs = placeholder.copy()
-    spectral_skewnesses = placeholder.copy()
-    spectral_variances = placeholder.copy()
+    for lst in [spectral_centroids, peak_frequencies, spectral_peak_frequencies, clearance_factors,
+                crest_factors, impulse_factors, kurtoises, partial_powers, shape_factors,
+                skewnesses, spectral_entropies, spectral_flatnesses, spectral_kurtoises,
+                spectral_rolloffs, spectral_skewnesses, spectral_variances, zero_crossing_rates]:
+        lst[:] = placeholder
 
 
 
@@ -316,7 +310,9 @@ df_hits["spectral_flatness"] = spectral_flatnesses
 df_hits["spectral_kurtosis"] = spectral_kurtoises
 df_hits["spectral_rolloff_hz"] = spectral_rolloffs
 df_hits["spectral_skewness"] = spectral_skewnesses
-df_hits["spectral_variance_khz2"] = spectral_variances  # NEU
+df_hits["spectral_variance_khz2"] = spectral_variances
+df_hits["zero_crossing_rate_hz"] = zero_crossing_rates  # NEU
+
 
 
 
@@ -458,13 +454,24 @@ spalten_reihenfolge = [
     "spectral_peak_frequency_hz" ,
     "spectral_rolloff_hz" ,
     "spectral_skewness" ,
-    "spectral_variance_khz2"
+    "spectral_variance_khz2" ,
+    "zero_crossing_rate_hz" ,
+"spectral_variance_khz2" ,
+    "zero_crossing_rate_hz",
+    "ml_label"
 ]
 
-# Nur diese Spalten exportieren
+
+
+# Die beiden Spalten werden exportiert
+df_export["ml_label"] = np.where((df_export["energy"] > 1000) & (df_export["counts"] > 1), 1, 0)
 df_export = df_export[spalten_reihenfolge]
 
 # Als CSV speichern
 df_export.to_csv("beweis_vollstaendige_tabelle.csv", index=False, sep=";")
 print("Erfolgreich! CSV-Datei wurde mit allen korrekten Einheiten am Ende des Skripts gespeichert.")
-# ==============================================================================
+
+
+
+
+print(f"Kontrolle für mich - Anzahl der Hits mit Label 1: {df_export['ml_label'].sum()} von insgesamt {len(df_export)} Hits.")
