@@ -109,13 +109,13 @@ spectral_entropies = []
 spectral_flatnesses = []
 spectral_kurtoises = []
 spectral_rolloffs = []
-spectral_skewnesses = []  # NEU (Letztes Feature!)
-
-
+spectral_skewnesses = []
+spectral_variances = []  
+zero_crossing_rates = []  # NEU (Das finale Feature)
 
 # Prüfen, ob die .tradb-Datei überhaupt existiert
 if os.path.exists(tradb_path):
-    print("Tradb-Datei gefunden! Starte die finale Feature-Extraktion ...")
+    print("Tradb-Datei gefunden! Starte die Feature-Extraktion...")
     fs = 2.0e6
 
     with vae.io.TraDatabase(tradb_path, mode='ro') as tra_db:
@@ -221,25 +221,31 @@ if os.path.exists(tradb_path):
                         else:
                             spectral_flatnesses.append(0.0)
 
-                        # --- ALGO 10 & 13: SPECTRAL KURTOSIS & SKEWNESS (Exakt nach Doku) ---
+                        # --- ALGO 10, 13 & 14: SPECTRAL MOMENTS (Kurtosis, Skewness & VARIANZ) ---
                         if ps_sum > 0:
                             p_spec = ps / ps_sum
                             spec_mean = np.sum(f_axis * p_spec)
                             spec_m2 = np.sum(((f_axis - spec_mean) ** 2) * p_spec)
-                            spec_m3 = np.sum(((f_axis - spec_mean) ** 3) * p_spec)  # Für Spektrale Schiefe
-                            spec_m4 = np.sum(((f_axis - spec_mean) ** 4) * p_spec)  # Für Spektrale Kurtosis
+                            spec_m3 = np.sum(((f_axis - spec_mean) ** 3) * p_spec)
+                            spec_m4 = np.sum(((f_axis - spec_mean) ** 4) * p_spec)
 
                             if spec_m2 > 0:
                                 spectral_kurtoises.append(np.round(spec_m4 / (spec_m2 ** 2), 2))
-                                # NEU: Spektrale Schiefe Formel umgesetzt
                                 spec_skew = (spec_m3 / ps_sum) / np.sqrt(spec_m2 / ps_sum) ** 3
                                 spectral_skewnesses.append(np.round(spec_skew, 2))
+
+                                # NEU: ALGO 14 - SPECTRAL VARIANCE (In kHz^2 umgerechnet für lesbare Werte)
+                                spec_var_hz2 = spec_m2 / ps_sum
+                                spec_var_khz2 = spec_var_hz2 / 1e6
+                                spectral_variances.append(np.round(spec_var_khz2, 1))
                             else:
                                 spectral_kurtoises.append(0.0)
                                 spectral_skewnesses.append(0.0)
+                                spectral_variances.append(0.0)
                         else:
                             spectral_kurtoises.append(0.0)
                             spectral_skewnesses.append(0.0)
+                            spectral_variances.append(0.0)
 
                         # --- ALGO 12: SPECTRAL ROLLOFF ---
                         if ps_sum > 0:
@@ -255,7 +261,7 @@ if os.path.exists(tradb_path):
                         for lst in [spectral_centroids, peak_frequencies, spectral_peak_frequencies, clearance_factors,
                                     crest_factors, impulse_factors, kurtoises, partial_powers, shape_factors,
                                     skewnesses, spectral_entropies, spectral_flatnesses, spectral_kurtoises,
-                                    spectral_rolloffs, spectral_skewnesses]:
+                                    spectral_rolloffs, spectral_skewnesses, spectral_variances]:
                             lst.append(None)
 
                 except Exception as e:
@@ -263,13 +269,13 @@ if os.path.exists(tradb_path):
                     for lst in [spectral_centroids, peak_frequencies, spectral_peak_frequencies, clearance_factors,
                                 crest_factors, impulse_factors, kurtoises, partial_powers, shape_factors,
                                 skewnesses, spectral_entropies, spectral_flatnesses, spectral_kurtoises,
-                                spectral_rolloffs, spectral_skewnesses]:
+                                spectral_rolloffs, spectral_skewnesses, spectral_variances]:
                         lst.append(None)
             else:
                 for lst in [spectral_centroids, peak_frequencies, spectral_peak_frequencies, clearance_factors,
                             crest_factors, impulse_factors, kurtoises, partial_powers, shape_factors,
                             skewnesses, spectral_entropies, spectral_flatnesses, spectral_kurtoises, spectral_rolloffs,
-                            spectral_skewnesses]:
+                            spectral_skewnesses, spectral_variances]:
                     lst.append(None)
 else:
     print(f"Warnung: Die Datei {tradb_path} wurde nicht gefunden!")
@@ -289,6 +295,7 @@ else:
     spectral_kurtoises = placeholder.copy()
     spectral_rolloffs = placeholder.copy()
     spectral_skewnesses = placeholder.copy()
+    spectral_variances = placeholder.copy()
 
 
 
@@ -308,7 +315,8 @@ df_hits["spectral_entropy"] = spectral_entropies
 df_hits["spectral_flatness"] = spectral_flatnesses
 df_hits["spectral_kurtosis"] = spectral_kurtoises
 df_hits["spectral_rolloff_hz"] = spectral_rolloffs
-df_hits["spectral_skewness"] = spectral_skewnesses  # NEU (Letztes Puzzleteil!)
+df_hits["spectral_skewness"] = spectral_skewnesses
+df_hits["spectral_variance_khz2"] = spectral_variances  # NEU
 
 
 
@@ -449,7 +457,8 @@ spalten_reihenfolge = [
     "spectral_kurtosis" ,
     "spectral_peak_frequency_hz" ,
     "spectral_rolloff_hz" ,
-    "spectral_skewness"
+    "spectral_skewness" ,
+    "spectral_variance_khz2"
 ]
 
 # Nur diese Spalten exportieren
