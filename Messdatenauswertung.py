@@ -468,10 +468,7 @@ df_export["ml_label"] = np.where((df_export["energy"] > 1000) & (df_export["coun
 df_export = df_export[spalten_reihenfolge]
 
 # Als CSV speichern
-df_export.to_csv("beweis_vollstaendige_tabelle.csv", index=False, sep=";")
+df_export.to_csv("Vollstaendige_tabelle.csv", index=False, sep=";")
 print("Erfolgreich! CSV-Datei wurde mit allen korrekten Einheiten am Ende des Skripts gespeichert.")
-
-
-
 
 print(f"Kontrolle für mich - Anzahl der Hits mit Label 1: {df_export['ml_label'].sum()} von insgesamt {len(df_export)} Hits.")
