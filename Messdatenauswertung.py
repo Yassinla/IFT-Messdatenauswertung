@@ -103,9 +103,9 @@ impulse_factors = []
 kurtoises = []
 partial_powers = []
 shape_factors = []
-skewnesses = []  # NEU
-
-
+skewnesses = []
+spectral_entropies = []
+spectral_flatnesses = []  # NEU
 
 
 
@@ -171,21 +171,14 @@ if os.path.exists(tradb_path):
                         # --- ALGO 4 & 7: STATISTISCHE MOMENTE (Kurtosis & Skewness) ---
                         y_centered = y - np.mean(y)
                         m2 = np.mean(y_centered ** 2)
-                        m3 = np.mean(y_centered ** 3)  # Für Skewness
-                        m4 = np.mean(y_centered ** 4)  # Für Kurtosis
+                        m3 = np.mean(y_centered ** 3)
+                        m4 = np.mean(y_centered ** 4)
 
-                        # Kurtosis berechnen
                         if m2 > 0:
-                            kurt = m4 / (m2 ** 2)
-                            kurtoises.append(np.round(kurt, 2))
+                            kurtoises.append(np.round(m4 / (m2 ** 2), 2))
+                            skewnesses.append(np.round(m3 / (m2 ** 1.5), 2))
                         else:
                             kurtoises.append(0.0)
-
-                        # NEU: ALGO 7 - SKEWNESS (Exakt nach Doku)
-                        if m2 > 0:
-                            skew = m3 / (m2 ** 1.5)  # m2**(3/2) ist das gleiche wie m2**1.5
-                            skewnesses.append(np.round(skew, 2))
-                        else:
                             skewnesses.append(0.0)
 
                         # --- ALGO 5: PARTIAL POWER ---
@@ -202,25 +195,51 @@ if os.path.exists(tradb_path):
 
                         # --- ALGO 6: SHAPE FACTOR ---
                         if mean_abs > 0:
-                            shf = rms / mean_abs
-                            shape_factors.append(np.round(shf, 2))
+                            shape_factors.append(np.round(rms / mean_abs, 2))
                         else:
                             shape_factors.append(0.0)
 
+                        # --- ALGO 8: SPECTRAL ENTROPY ---
+                        if ps_sum > 0 and n > 1:
+                            p_dist = ps / ps_sum
+                            p_dist = p_dist[p_dist > 0]
+                            if len(p_dist) > 0:
+                                ent = -np.sum(p_dist * np.log2(p_dist)) / np.log2(n)
+                                spectral_entropies.append(np.round(ent, 4))
+                            else:
+                                spectral_entropies.append(0.0)
+                        else:
+                            spectral_entropies.append(0.0)
+
+                        # --- NEU: ALGO 9 - SPECTRAL FLATNESS (Exakt nach Doku) ---
+                        arithmetic_mean = np.mean(ps)
+                        if arithmetic_mean > 0:
+                            ps_nonzero = ps[ps > 0]  # Numerischer Schutz vor log(0)
+                            if len(ps_nonzero) > 0:
+                                geom_mean = np.exp(np.mean(np.log(ps_nonzero)))
+                                flatness = geom_mean / arithmetic_mean
+                                spectral_flatnesses.append(np.round(flatness, 4))
+                            else:
+                                spectral_flatnesses.append(0.0)
+                        else:
+                            spectral_flatnesses.append(0.0)
+
                     else:
-                        for lst in [spectral_centroids, peak_frequencies, clearance_factors,
-                                    crest_factors, impulse_factors, kurtoises, partial_powers, shape_factors,
-                                    skewnesses]:
+                        for lst in [spectral_centroids, peak_frequencies, clearance_factors, crest_factors,
+                                    impulse_factors, kurtoises, partial_powers, shape_factors, skewnesses,
+                                    spectral_entropies, spectral_flatnesses]:
                             lst.append(None)
 
                 except Exception as e:
                     print(f"Fehler bei Hit ID {idx} (TRAI {trai}): {e}")
-                    for lst in [spectral_centroids, peak_frequencies, clearance_factors,
-                                crest_factors, impulse_factors, kurtoises, partial_powers, shape_factors, skewnesses]:
+                    for lst in [spectral_centroids, peak_frequencies, clearance_factors, crest_factors,
+                                impulse_factors, kurtoises, partial_powers, shape_factors, skewnesses,
+                                spectral_entropies, spectral_flatnesses]:
                         lst.append(None)
             else:
-                for lst in [spectral_centroids, peak_frequencies, clearance_factors,
-                            crest_factors, impulse_factors, kurtoises, partial_powers, shape_factors, skewnesses]:
+                for lst in [spectral_centroids, peak_frequencies, clearance_factors, crest_factors,
+                            impulse_factors, kurtoises, partial_powers, shape_factors, skewnesses,
+                            spectral_entropies, spectral_flatnesses]:
                     lst.append(None)
 else:
     print(f"Warnung: Die Datei {tradb_path} wurde nicht gefunden!")
@@ -234,6 +253,8 @@ else:
     partial_powers = placeholder.copy()
     shape_factors = placeholder.copy()
     skewnesses = placeholder.copy()
+    spectral_entropies = placeholder.copy()
+    spectral_flatnesses = placeholder.copy()
 
 
 
@@ -248,8 +269,9 @@ df_hits["impulse_factor"] = impulse_factors
 df_hits["kurtosis"] = kurtoises
 df_hits["partial_power_100_400khz"] = partial_powers
 df_hits["shape_factor"] = shape_factors
-df_hits["skewness"] = skewnesses  # NEU
-
+df_hits["skewness"] = skewnesses
+df_hits["spectral_entropy"] = spectral_entropies
+df_hits["spectral_flatness"] = spectral_flatnesses  # NEU
 
 
 
@@ -385,7 +407,9 @@ spalten_reihenfolge = [
     "kurtosis" ,
     "partial_power_100_400khz" ,
     "shape_factor" ,
-    "skewness"
+    "skewness" ,
+    "spectral_entropy" ,
+    "spectral_flatness"
 ]
 
 # Nur diese Spalten exportieren
