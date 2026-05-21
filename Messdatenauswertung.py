@@ -8,7 +8,7 @@ import pandas as pd
 import os
 import openae as oae
 import openae.features as oae_feat
-
+import math
 
 plt.rcParams.update({
     "font.size": 11,
@@ -89,15 +89,21 @@ df_hits["threshold"] = np.round(df_hits["threshold"], 1)
 tradb_path = str(pridb_path).replace(".pridb", ".tradb")
 
 # Hier werden die entsprechenden Listen erstellt, in die später die berechneten OpenAE-features geldaen werden
+
+fmin_param = 100000.0  # Untere Grenze in Hz (z.B. 100 kHz)
+fmax_param = 400000.0  # Obere Grenze in Hz (z.B. 400 kHz)
+
+
+
 spectral_centroids = []
 peak_frequencies = []
 clearance_factors = []
 crest_factors = []
 impulse_factors = []
-kurtoises = []  # NEU
-
-
-
+kurtoises = []
+partial_powers = []
+shape_factors = []
+skewnesses = []  # NEU
 
 
 
@@ -120,7 +126,7 @@ if os.path.exists(tradb_path):
                     y, t = tra_db.read_wave(trai)
 
                     if len(y) > 0:
-                        # --- Bestehende Frequenz-Features ---
+                        # --- Frequenz-Features & Spektrum ---
                         windowed_y = y * np.hanning(len(y))
                         spectrum = np.fft.rfft(windowed_y)
 
@@ -162,40 +168,60 @@ if os.path.exists(tradb_path):
                         else:
                             impulse_factors.append(0.0)
 
-                        # --- NEU: ALGO 4 - KURTOSIS (Exakt nach Doku) ---
+                        # --- ALGO 4 & 7: STATISTISCHE MOMENTE (Kurtosis & Skewness) ---
                         y_centered = y - np.mean(y)
                         m2 = np.mean(y_centered ** 2)
-                        m4 = np.mean(y_centered ** 4)
+                        m3 = np.mean(y_centered ** 3)  # Für Skewness
+                        m4 = np.mean(y_centered ** 4)  # Für Kurtosis
 
+                        # Kurtosis berechnen
                         if m2 > 0:
                             kurt = m4 / (m2 ** 2)
                             kurtoises.append(np.round(kurt, 2))
                         else:
                             kurtoises.append(0.0)
 
+                        # NEU: ALGO 7 - SKEWNESS (Exakt nach Doku)
+                        if m2 > 0:
+                            skew = m3 / (m2 ** 1.5)  # m2**(3/2) ist das gleiche wie m2**1.5
+                            skewnesses.append(np.round(skew, 2))
+                        else:
+                            skewnesses.append(0.0)
+
+                        # --- ALGO 5: PARTIAL POWER ---
+                        ps = np.abs(spectrum) ** 2
+                        n = len(ps)
+                        n_lower = max(0, min(math.floor(2 * n * fmin_param / fs), n - 1))
+                        n_upper = max(0, min(math.floor(2 * n * fmax_param / fs), n))
+                        ps_sum = np.sum(ps)
+                        if ps_sum > 0:
+                            part_pow = np.sum(ps[n_lower:n_upper]) / ps_sum
+                            partial_powers.append(np.round(part_pow, 4))
+                        else:
+                            partial_powers.append(0.0)
+
+                        # --- ALGO 6: SHAPE FACTOR ---
+                        if mean_abs > 0:
+                            shf = rms / mean_abs
+                            shape_factors.append(np.round(shf, 2))
+                        else:
+                            shape_factors.append(0.0)
+
                     else:
-                        spectral_centroids.append(None)
-                        peak_frequencies.append(None)
-                        clearance_factors.append(None)
-                        crest_factors.append(None)
-                        impulse_factors.append(None)
-                        kurtoises.append(None)
+                        for lst in [spectral_centroids, peak_frequencies, clearance_factors,
+                                    crest_factors, impulse_factors, kurtoises, partial_powers, shape_factors,
+                                    skewnesses]:
+                            lst.append(None)
 
                 except Exception as e:
                     print(f"Fehler bei Hit ID {idx} (TRAI {trai}): {e}")
-                    spectral_centroids.append(None)
-                    peak_frequencies.append(None)
-                    clearance_factors.append(None)
-                    crest_factors.append(None)
-                    impulse_factors.append(None)
-                    kurtoises.append(None)
+                    for lst in [spectral_centroids, peak_frequencies, clearance_factors,
+                                crest_factors, impulse_factors, kurtoises, partial_powers, shape_factors, skewnesses]:
+                        lst.append(None)
             else:
-                spectral_centroids.append(None)
-                peak_frequencies.append(None)
-                clearance_factors.append(None)
-                crest_factors.append(None)
-                impulse_factors.append(None)
-                kurtoises.append(None)
+                for lst in [spectral_centroids, peak_frequencies, clearance_factors,
+                            crest_factors, impulse_factors, kurtoises, partial_powers, shape_factors, skewnesses]:
+                    lst.append(None)
 else:
     print(f"Warnung: Die Datei {tradb_path} wurde nicht gefunden!")
     placeholder = [None] * len(df_hits)
@@ -205,6 +231,9 @@ else:
     crest_factors = placeholder.copy()
     impulse_factors = placeholder.copy()
     kurtoises = placeholder.copy()
+    partial_powers = placeholder.copy()
+    shape_factors = placeholder.copy()
+    skewnesses = placeholder.copy()
 
 
 
@@ -216,7 +245,10 @@ df_hits["peak_frequency_khz"] = peak_frequencies
 df_hits["clearance_factor"] = clearance_factors
 df_hits["crest_factor"] = crest_factors
 df_hits["impulse_factor"] = impulse_factors
-df_hits["kurtosis"] = kurtoises  # NEU
+df_hits["kurtosis"] = kurtoises
+df_hits["partial_power_100_400khz"] = partial_powers
+df_hits["shape_factor"] = shape_factors
+df_hits["skewness"] = skewnesses  # NEU
 
 
 
@@ -350,7 +382,10 @@ spalten_reihenfolge = [
     "clearance_factor" ,
     "crest_factor" ,
     "impulse_factor" ,
-    "kurtosis"
+    "kurtosis" ,
+    "partial_power_100_400khz" ,
+    "shape_factor" ,
+    "skewness"
 ]
 
 # Nur diese Spalten exportieren
