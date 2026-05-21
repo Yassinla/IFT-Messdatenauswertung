@@ -115,7 +115,7 @@ spectral_skewnesses = []  # NEU (Letztes Feature!)
 
 # Prüfen, ob die .tradb-Datei überhaupt existiert
 if os.path.exists(tradb_path):
-    print("Tradb-Datei gefunden! Starte die finale Feature-Extraktion für Franzi...")
+    print("Tradb-Datei gefunden! Starte die finale Feature-Extraktion ...")
     fs = 2.0e6
 
     with vae.io.TraDatabase(tradb_path, mode='ro') as tra_db:
