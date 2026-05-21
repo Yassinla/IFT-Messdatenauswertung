@@ -91,10 +91,7 @@ tradb_path = str(pridb_path).replace(".pridb", ".tradb")
 # Hier werden die entsprechenden Listen erstellt, in die später die berechneten OpenAE-features geldaen werden
 spectral_centroids = []
 peak_frequencies = []
-spectral_variances = []
-spectral_skewnesses = []
-spectral_kurtoises = []
-weighted_peak_freqs = []
+clearance_factors = []  # Neu für den ersten Algo
 
 
 
@@ -111,67 +108,75 @@ weighted_peak_freqs = []
 
 # Prüfen, ob die .tradb-Datei überhaupt existiert
 if os.path.exists(tradb_path):
-    print("Tradb-Datei gefunden! Starte die Feature-Extraktion für jeden Hit...")
-
-    # Samplerate fest definieren (wie in deinem funktionierenden Skript)
+    print("Tradb-Datei gefunden! Starte die Feature-Extraktion...")
     fs = 2.0e6
 
-    # Öffnen der transienten Datenbank
     with vae.io.TraDatabase(tradb_path, mode='ro') as tra_db:
-
-        # Wir fragen iterytiv den trai-index df_hits ab um danach die entsprechende Wellenform zu adressieren
         for idx, row in df_hits.iterrows():
             trai = int(row["trai"])
-            # If-Bedingung prüft, ob überhaupt ein trai-index vorhanden ist, sprich ob eine Wellenform für den nächsten Iterationszyklus existiert
+
             if trai > 0:
                 try:
-                    # === FIX: y und t getrennt abfangen ===
                     y, t = tra_db.read_wave(trai)
 
                     if len(y) > 0:
-                        # 1. Spektrale Features vorbereiten (Hanning-Fensterung + FFT)
+                        # --- Bestehende Frequenz-Features ---
                         windowed_y = y * np.hanning(len(y))
                         spectrum = np.fft.rfft(windowed_y)
 
-                        # Peak Frequency bestimmen (für unsere Tabelle)
                         f_axis = np.fft.rfftfreq(len(y), d=1 / fs)
                         idx_max = np.argmax(np.abs(spectrum))
                         f_haupt_khz = f_axis[idx_max] / 1000.0
 
-                        # 2. OpenAE Input-Objekt exakt wie im alten Skript füttern
                         oae_input = oae_feat.Input(
                             float(fs),
                             y.astype(np.float32),
                             spectrum.astype(np.complex64)
                         )
-
-                        # 3. Features über OpenAE berechnen und in kHz umrechnen
                         f_centroid_hz = oae_feat.spectral_centroid(oae_input)
-                        f_schwerpunkt_khz = f_centroid_hz / 1000.0
 
-                        # Werte gerundet in die Listen schreiben
-                        spectral_centroids.append(np.round(f_schwerpunkt_khz, 1))
+                        spectral_centroids.append(np.round(f_centroid_hz / 1000.0, 1))
                         peak_frequencies.append(np.round(f_haupt_khz, 1))
+
+                        # --- NEU: ALGO 1 - CLEARANCE FACTOR (Exakt nach Doku) ---
+                        mean_sqrt = np.mean(np.sqrt(np.abs(y)))
+
+                        if mean_sqrt > 0:
+                            # Formel aus dem Screenshot umgesetzt
+                            clf = np.max(np.abs(y)) / (mean_sqrt ** 2)
+                            clearance_factors.append(np.round(clf, 2))
+                        else:
+                            clearance_factors.append(0.0)
+
                     else:
                         spectral_centroids.append(None)
                         peak_frequencies.append(None)
+                        clearance_factors.append(None)
 
                 except Exception as e:
                     print(f"Fehler bei Hit ID {idx} (TRAI {trai}): {e}")
                     spectral_centroids.append(None)
                     peak_frequencies.append(None)
+                    clearance_factors.append(None)
             else:
                 spectral_centroids.append(None)
                 peak_frequencies.append(None)
+                clearance_factors.append(None)
 else:
     print(f"Warnung: Die Datei {tradb_path} wurde nicht gefunden!")
-    spectral_centroids = [None] * len(df_hits)
-    peak_frequencies = [None] * len(df_hits)
+    placeholder = [None] * len(df_hits)
+    spectral_centroids = placeholder.copy()
+    peak_frequencies = placeholder.copy()
+    clearance_factors = placeholder.copy()
+
+
+
+
 
 # Die Ergebnisse an die Tabelle hängen
 df_hits["spectral_centroid_khz"] = spectral_centroids
 df_hits["peak_frequency_khz"] = peak_frequencies
-
+df_hits["clearance_factor"] = clearance_factors  # Neu
 
 
 
@@ -301,8 +306,9 @@ spalten_reihenfolge = [
     "rise_time",
     "counts",
     "trai",
-    "spectral_centroid_khz",  # OpenAE-feature
-    "peak_frequency_khz"       # OpenAE-feature
+    "spectral_centroid_khz",
+    "peak_frequency_khz" ,
+    "clearance_factor"
 ]
 
 # Nur diese Spalten exportieren
