@@ -91,9 +91,9 @@ tradb_path = str(pridb_path).replace(".pridb", ".tradb")
 # Hier werden die entsprechenden Listen erstellt, in die später die berechneten OpenAE-features geldaen werden
 spectral_centroids = []
 peak_frequencies = []
-clearance_factors = []  # Neu für den ersten Algo
-
-
+clearance_factors = []
+crest_factors = []
+impulse_factors = []  # NEU
 
 
 
@@ -138,36 +138,46 @@ if os.path.exists(tradb_path):
                         spectral_centroids.append(np.round(f_centroid_hz / 1000.0, 1))
                         peak_frequencies.append(np.round(f_haupt_khz, 1))
 
-                        # --- NEU: ALGO 1 - CLEARANCE FACTOR (Exakt nach Doku) ---
+                        # --- ALGO 1: CLEARANCE FACTOR ---
                         mean_sqrt = np.mean(np.sqrt(np.abs(y)))
-
                         if mean_sqrt > 0:
-                            # Formel aus dem Screenshot umgesetzt
                             clf = np.max(np.abs(y)) / (mean_sqrt ** 2)
                             clearance_factors.append(np.round(clf, 2))
                         else:
                             clearance_factors.append(0.0)
 
+                        # --- NEU: ALGO 2 - CREST FACTOR (Exakt nach Doku) ---
+                        rms = np.sqrt(np.mean(y ** 2))
+                        if rms > 0:
+                            crf = np.max(np.abs(y)) / rms
+                            crest_factors.append(np.round(crf, 2))
+                        else:
+                            crest_factors.append(0.0)
+
                     else:
                         spectral_centroids.append(None)
                         peak_frequencies.append(None)
                         clearance_factors.append(None)
+                        crest_factors.append(None)
 
                 except Exception as e:
                     print(f"Fehler bei Hit ID {idx} (TRAI {trai}): {e}")
                     spectral_centroids.append(None)
                     peak_frequencies.append(None)
                     clearance_factors.append(None)
+                    crest_factors.append(None)
             else:
                 spectral_centroids.append(None)
                 peak_frequencies.append(None)
                 clearance_factors.append(None)
+                crest_factors.append(None)
 else:
     print(f"Warnung: Die Datei {tradb_path} wurde nicht gefunden!")
     placeholder = [None] * len(df_hits)
     spectral_centroids = placeholder.copy()
     peak_frequencies = placeholder.copy()
     clearance_factors = placeholder.copy()
+    crest_factors = placeholder.copy()
 
 
 
@@ -176,7 +186,8 @@ else:
 # Die Ergebnisse an die Tabelle hängen
 df_hits["spectral_centroid_khz"] = spectral_centroids
 df_hits["peak_frequency_khz"] = peak_frequencies
-df_hits["clearance_factor"] = clearance_factors  # Neu
+df_hits["clearance_factor"] = clearance_factors
+df_hits["crest_factor"] = crest_factors  # NEU
 
 
 
@@ -308,7 +319,8 @@ spalten_reihenfolge = [
     "trai",
     "spectral_centroid_khz",
     "peak_frequency_khz" ,
-    "clearance_factor"
+    "clearance_factor" ,
+    "crest_factor"
 ]
 
 # Nur diese Spalten exportieren
