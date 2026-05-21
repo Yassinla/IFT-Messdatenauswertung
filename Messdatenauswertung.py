@@ -105,8 +105,8 @@ partial_powers = []
 shape_factors = []
 skewnesses = []
 spectral_entropies = []
-spectral_flatnesses = []  # NEU
-
+spectral_flatnesses = []
+spectral_kurtoises = []  # NEU
 
 
 
@@ -211,35 +211,49 @@ if os.path.exists(tradb_path):
                         else:
                             spectral_entropies.append(0.0)
 
-                        # --- NEU: ALGO 9 - SPECTRAL FLATNESS (Exakt nach Doku) ---
+                        # --- ALGO 9: SPECTRAL FLATNESS ---
                         arithmetic_mean = np.mean(ps)
                         if arithmetic_mean > 0:
-                            ps_nonzero = ps[ps > 0]  # Numerischer Schutz vor log(0)
+                            ps_nonzero = ps[ps > 0]
                             if len(ps_nonzero) > 0:
                                 geom_mean = np.exp(np.mean(np.log(ps_nonzero)))
-                                flatness = geom_mean / arithmetic_mean
-                                spectral_flatnesses.append(np.round(flatness, 4))
+                                spectral_flatnesses.append(np.round(geom_mean / arithmetic_mean, 4))
                             else:
                                 spectral_flatnesses.append(0.0)
                         else:
                             spectral_flatnesses.append(0.0)
 
+                        # --- NEU: ALGO 10 - SPECTRAL KURTOSIS (Exakt nach Doku) ---
+                        if ps_sum > 0:
+                            p_spec = ps / ps_sum
+                            spec_mean = np.sum(f_axis * p_spec)
+                            spec_m2 = np.sum(((f_axis - spec_mean) ** 2) * p_spec)
+                            spec_m4 = np.sum(((f_axis - spec_mean) ** 4) * p_spec)
+
+                            if spec_m2 > 0:
+                                spec_kurt = spec_m4 / (spec_m2 ** 2)
+                                spectral_kurtoises.append(np.round(spec_kurt, 2))
+                            else:
+                                spectral_kurtoises.append(0.0)
+                        else:
+                            spectral_kurtoises.append(0.0)
+
                     else:
                         for lst in [spectral_centroids, peak_frequencies, clearance_factors, crest_factors,
                                     impulse_factors, kurtoises, partial_powers, shape_factors, skewnesses,
-                                    spectral_entropies, spectral_flatnesses]:
+                                    spectral_entropies, spectral_flatnesses, spectral_kurtoises]:
                             lst.append(None)
 
                 except Exception as e:
                     print(f"Fehler bei Hit ID {idx} (TRAI {trai}): {e}")
                     for lst in [spectral_centroids, peak_frequencies, clearance_factors, crest_factors,
                                 impulse_factors, kurtoises, partial_powers, shape_factors, skewnesses,
-                                spectral_entropies, spectral_flatnesses]:
+                                spectral_entropies, spectral_flatnesses, spectral_kurtoises]:
                         lst.append(None)
             else:
                 for lst in [spectral_centroids, peak_frequencies, clearance_factors, crest_factors,
                             impulse_factors, kurtoises, partial_powers, shape_factors, skewnesses,
-                            spectral_entropies, spectral_flatnesses]:
+                            spectral_entropies, spectral_flatnesses, spectral_kurtoises]:
                     lst.append(None)
 else:
     print(f"Warnung: Die Datei {tradb_path} wurde nicht gefunden!")
@@ -255,6 +269,7 @@ else:
     skewnesses = placeholder.copy()
     spectral_entropies = placeholder.copy()
     spectral_flatnesses = placeholder.copy()
+    spectral_kurtoises = placeholder.copy()
 
 
 
@@ -271,7 +286,8 @@ df_hits["partial_power_100_400khz"] = partial_powers
 df_hits["shape_factor"] = shape_factors
 df_hits["skewness"] = skewnesses
 df_hits["spectral_entropy"] = spectral_entropies
-df_hits["spectral_flatness"] = spectral_flatnesses  # NEU
+df_hits["spectral_flatness"] = spectral_flatnesses
+df_hits["spectral_kurtosis"] = spectral_kurtoises  # NEU
 
 
 
@@ -409,7 +425,8 @@ spalten_reihenfolge = [
     "shape_factor" ,
     "skewness" ,
     "spectral_entropy" ,
-    "spectral_flatness"
+    "spectral_flatness" ,
+    "spectral_kurtosis"
 ]
 
 # Nur diese Spalten exportieren
