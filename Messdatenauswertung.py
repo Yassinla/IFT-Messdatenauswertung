@@ -464,7 +464,7 @@ spalten_reihenfolge = [
 
 
 # Die beiden Spalten werden exportiert
-df_export["ml_label"] = np.where((df_export["energy"] > 1000) & (df_export["counts"] > 1), 1, 0)
+df_export["ml_label"] = np.where((df_export["energy"] > 1000) & (df_export["counts"] > 12), 1, 0)
 df_export = df_export[spalten_reihenfolge]
 
 # Als CSV speichern
