@@ -376,7 +376,7 @@ plt.grid(True, which='minor', linestyle=':', linewidth=0.5, alpha=0.3)
 plt.legend(frameon=True, edgecolor='black', facecolor='white', loc='best')
 
 plt.tight_layout()
-plt.show()
+plt.show(block=False)
 
 
 # ---- Plot 2: Energie ----
@@ -390,7 +390,7 @@ plt.title("Muster 02 ohne Filter")
 plt.legend()
 plt.grid()
 plt.tight_layout()
-plt.show()
+plt.show(block=False)
 
 # ---- Plot 3: Energie ----
 plt.figure(figsize=(10, 6))

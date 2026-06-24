@@ -188,3 +188,25 @@ print(corelation_table2)
 corelation_table3 = pd.crosstab(df["kmeans_cluster"], df["dbscan_cluster"])
 print("\n=== KREUZTABELLE: K-MEANS vs DBSCAN ===")
 print(corelation_table3)
+
+
+
+
+
+
+
+## ================================================================================================================
+## Extraktion der Hits aus den interessanten korrelierenden Cluster -1 von DBSCAN und 1 von GMM
+## ================================================================================================================
+
+# Dei 17 Hits die korrelieren werden in dem dataframe sparat angebracht
+interessante_hits = (df["dbscan_cluster"] == -1) & (df["gmm_cluster"] == 1)
+dataframe_interessant = df[interessante_hits]
+
+
+print(f"\n=== DIE 17 GMM-RISS-AUSREISSER (Anzahl: {len(df_interessant)}) ===")
+
+# Zeige uns die echten IDs (TRAI) und die wichtigsten Hauptmerkmale
+features_to_show = ['trai','amplitude','energy','crest_factor','spectral centroid']
+
+print(dataframe_interessant[features_to_show].to_string())
