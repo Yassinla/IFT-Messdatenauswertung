@@ -200,13 +200,70 @@ print(corelation_table3)
 ## ================================================================================================================
 
 # Dei 17 Hits die korrelieren werden in dem dataframe sparat angebracht
-interessante_hits = (df["dbscan_cluster"] == -1) & (df["gmm_cluster"] == 1)
-dataframe_interessant = df[interessante_hits]
+interessante_hits1 = (df["dbscan_cluster"] == -1) & (df["gmm_cluster"] == 1)
+dataframe_interessant1 = df[interessante_hits1]
 
 
-print(f"\n=== DIE 17 GMM-RISS-AUSREISSER (Anzahl: {len(df_interessant)}) ===")
+print(f"\n=== DIE 17 GMM-RISS-AUSREISSER (Anzahl: {len(dataframe_interessant1)}) ===")
 
 # Zeige uns die echten IDs (TRAI) und die wichtigsten Hauptmerkmale
-features_to_show = ['trai','amplitude','energy','crest_factor','spectral centroid']
+features_to_show = ['trai','amplitude','energy','crest_factor','spectral_centroid_khz', 'duration','spectral_peak_frequency_hz','spectral_entropy']
 
-print(dataframe_interessant[features_to_show].to_string())
+print(dataframe_interessant1[features_to_show].to_string())
+
+
+
+
+## ================================================================================================================
+## Extraktion der Hits aus den interessanten korrelierenden Cluster 1 von DBSCAN und 0 von GMM
+## ================================================================================================================
+
+interessante_hits2 = (df["dbscan_cluster"] == 1) & (df["gmm_cluster"] == 0)
+dataframe_interessant2 = df[interessante_hits2]
+
+
+print(f"\n=== Die Korrelation (1) DBSCAN und (0) GMM (Anzahl: {len(dataframe_interessant2)}) ===")
+
+
+
+print(dataframe_interessant2[features_to_show].to_string())
+
+
+
+
+
+
+
+
+## ================================================================================================================
+## Extraktion der Hits aus den interessanten korrelierenden Cluster -1 von DBSCAN und 0 von GMM
+## ================================================================================================================
+
+
+interessante_hits3 = (df["dbscan_cluster"]) == -1 & (df["gmm_cluster"] == 0)
+dataframe_interessant3 = df[interessante_hits3]
+
+
+print(f"\n=== Die Korrelation (-1) DBSCAN und (0) GMM (Anzahl: {len(dataframe_interessant3)}) ===")
+
+
+print(dataframe_interessant3[features_to_show].to_string())
+
+
+
+
+
+
+## ================================================================================================================
+## Extraktion der Hits aus den interessanten korrelierenden Cluster 0 von DBSCAN und 0 von GMM
+## ================================================================================================================
+
+
+interessante_hits4 = (df["dbscan_cluster"] == 0) & (df["gmm_cluster"] == 0)
+dataframe_interessant4 = df[interessante_hits4]
+
+
+print(f"\n=== Die Korrelation (-1) DBSCAN und (0) GMM (Anzahl: {len(dataframe_interessant4)}) ===")
+
+
+print(dataframe_interessant4[features_to_show].to_string())
