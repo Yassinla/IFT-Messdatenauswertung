@@ -23,7 +23,7 @@ plt.rcParams.update({
     "grid.linestyle": "--",
 })
 
-# Tkinter-Hauptfenster ausblenden
+# Tkinter-Hauptfenster ausblendenv
 root = tk.Tk()
 root.withdraw()
 
